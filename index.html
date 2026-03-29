@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>981 路線動態系統</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
+        .header { background: #1e3799; color: white; padding: 15px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
+        .container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .column { background: white; border-radius: 10px; padding: 15px; width: 100%; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { border-left: 5px solid #fa983a; padding-left: 10px; color: #1e3799; }
+        .stop-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .time-tag { padding: 4px 10px; border-radius: 15px; font-weight: bold; font-size: 0.9em; min-width: 60px; text-align: center; }
+        .coming { background: #eb2f06; color: white; }
+        .minutes { background: #78e08f; color: #0a3d62; }
+        .waiting { background: #dcdde1; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🚌 981 即時公車動態</h1>
+    <p id="status">正在等待密碼驗證...</p>
+</div>
+
+<div class="container" id="app" style="display:none;">
+    <div class="column">
+        <h2>往 鶯歌 / 鳳鳴</h2>
+        <div id="dir-0"></div>
+    </div>
+    <div class="column">
+        <h2>往 三峽</h2>
+        <div id="dir-1"></div>
+    </div>
+</div>
+
+<script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxcmAEoEE590JwCpuNJLneQvYeUVadNwHBNyiwRmalOfb-ZRm9-heis070vTTJhv6c/exec';
+
+    // 前端 SHA-256 加密工具
+    async function sha256(message) {
+        const msgUint8 = new TextEncoder().encode(message);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function init() {
+        const pwd = prompt("請輸入 981 系統存取密碼：");
+        if (!pwd) return;
+
+        const hash = await sha256(pwd); // 先加密再傳送
+        startFetch(hash);
+    }
+
+    async function startFetch(hash) {
+        try {
+            const response = await fetch(`${GAS_URL}?key=${hash}`);
+            const data = await response.json();
+            
+            if (data.code === 403) {
+                alert(data.message);
+                location.reload();
+                return;
+            }
+
+            document.getElementById('app').style.display = 'flex';
+            document.getElementById('status').innerText = `最後更新：${new Date().toLocaleTimeString()}`;
+
+            render(data, 0, 'dir-0');
+            render(data, 1, 'dir-1');
+
+            // 每 30 秒帶著同一個加密後的 hash 去更新資料
+            setTimeout(() => startFetch(hash), 30000);
+        } catch (e) {
+            document.getElementById('status').innerText = "連線失敗或密碼錯誤";
+        }
+    }
+
+    function render(allData, direction, elementId) {
+        const container = document.getElementById(elementId);
+        container.innerHTML = '';
+        const routeInfo = allData.stopOrder.find(r => r.Direction === direction);
+        if (!routeInfo) return;
+
+        routeInfo.Stops.sort((a, b) => a.StopSequence - b.StopSequence).forEach(stop => {
+            const timeInfo = allData.arrival.find(t => t.StopUID === stop.StopUID && t.Direction === direction);
+            let timeHtml = '<span class="time-tag waiting">未發車</span>';
+            
+            if (timeInfo && timeInfo.StopStatus === 0) {
+                const mins = Math.floor(timeInfo.EstimateTime / 60);
+                timeHtml = mins <= 1 ? '<span class="time-tag coming">進站中</span>' : `<span class="time-tag minutes">${mins} 分</span>`;
+            }
+            container.innerHTML += `<div class="stop-item"><span>${stop.StopName.Zh_tw}</span>${timeHtml}</div>`;
+        });
+    }
+
+    init();
+</script>
+</body>
+</html>
