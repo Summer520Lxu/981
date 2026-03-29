@@ -21,12 +21,16 @@
         footer a { color: #1e3799; text-decoration: none; font-weight: bold; }
         footer a:hover { text-decoration: underline; }
         hr { width: 60%; border: 0; border-top: 1px solid #eee; margin: 15px auto; }
+
+        /* 時間字體強化 */
+        #current-time, #status { font-weight: bold; margin: 5px 0; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <h1>🚌 981 即時公車動態</h1>
+    <p id="current-time">現在時間：載入中...</p>
     <p id="status">請輸入密碼以啟動系統</p>
 </div>
 
@@ -60,6 +64,11 @@
         return `${h}:${m}:${s}`;
     }
 
+    // 每秒更新一次現在時間
+    setInterval(() => {
+        document.getElementById('current-time').innerText = `現在時間：${getFormattedTime()}`;
+    }, 1000);
+
     async function sha256(message) {
         const msgUint8 = new TextEncoder().encode(message);
         const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -69,7 +78,6 @@
     async function init() {
         const pwd = prompt("請輸入存取密碼：");
         
-        // 處理使用者沒輸入或按取消的情況
         if (pwd === null || pwd === "") {
             document.getElementById('status').innerText = "未輸入密碼，請重新整理頁面。";
             return;
