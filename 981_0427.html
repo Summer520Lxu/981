@@ -51,7 +51,7 @@
 </footer>
 
 <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbx7gzggDUimx4mx_9XKFezzI-tDYVY6S8obAzBkuV_HskwUsgY7k6OcoBDyU9aX50b1/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycby4qLoqAFf7Wu0ay9hbRWC6yRHwNbzLPrpHZm43eQK37owIMfHinTlyAJN_RxgCgVF1/exec';
     const HIDDEN_SALT = "BusSalt_981_"; // 與後端一致
     let _u = ""; 
 
@@ -84,15 +84,20 @@
         await startFetch(hash);
     }
 
-    async function startFetch(hash) {
-        try {
-            const response = await fetch(`${GAS_URL}?key=${hash}`);
-            const data = await response.json();
-            
-            if (data.code === 403) {
-                document.getElementById('status').innerText = "驗證失效，請重整頁面。";
-                return;
-            }
+ async function updateProcess() {
+        if (!_u) return;
+        document.getElementById('status').innerText = "驗證更新中...";
+        
+        // 取得當前分鐘數 (0-59)
+        const now = new Date();
+        const timeFactor = now.getMinutes().toString(); 
+        
+        // 生成 Hash
+        const hash = await sha256(HIDDEN_SALT + _u + timeFactor);
+        
+        console.log("正在發送驗證...", { minute: timeFactor, hash: hash }); // 偵錯用
+        await startFetch(hash);
+    }
 
             document.getElementById('app').style.display = 'flex';
             document.getElementById('status').innerText = `最後更新：${getFormattedTime()}`;
