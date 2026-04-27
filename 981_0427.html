@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>981 路線動態系統</title>
     <style>
-        /* 這裡完全保留你原本的 CSS 樣式 */
         body { font-family: sans-serif; background: #f4f7f6; padding: 20px; display: flex; flex-direction: column; min-height: 100vh; margin: 0; }
         .header { background: #1e3799; color: white; padding: 15px; text-align: center; border-radius: 10px; margin-bottom: 20px; }
         .container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; flex: 1; }
@@ -18,8 +17,6 @@
         .waiting { background: #dcdde1; color: #7f8c8d; }
         footer { margin-top: 40px; padding: 20px; text-align: center; color: #7f8c8d; font-size: 0.85em; border-top: 1px solid #eee; background: white; line-height: 1.8; }
         footer a { color: #1e3799; text-decoration: none; font-weight: bold; }
-        footer a:hover { text-decoration: underline; }
-        hr { width: 60%; border: 0; border-top: 1px solid #eee; margin: 15px auto; }
         #current-time, #status { font-weight: bold; margin: 5px 0; }
     </style>
 </head>
@@ -43,21 +40,20 @@
 </div>
 
 <footer>
-    <div>若您對發車時間有疑慮，建議您前往 <a href="https://ebus.gov.taipei/EBus/VsSimpleMap?routeid=0410098100&gb=0" target="_blank">大臺北公車官網</a> 查詢詳細資訊。</div>
+    <div>若您對發車時間有疑慮，建議您前往 <a href="https://ebus.gov.taipei/EBus/VsSimpleMap?routeid=0410098100&gb=0" target="_blank">大臺北公車官網</a> 查詢。</div>
     <hr>
-    <div>網站創建日期：2026-04-02</div>
-    <div>最後更新日期：2026-04-27</div>
-    <div>Copyright © 2026 All Rights Reserved.</div>
+    <div>最後更新日期：2026-04-27 | Copyright © 2026 All Rights Reserved.</div>
 </footer>
 
 <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycby4qLoqAFf7Wu0ay9hbRWC6yRHwNbzLPrpHZm43eQK37owIMfHinTlyAJN_RxgCgVF1/exec';
-    const HIDDEN_SALT = "BusSalt_981_"; // 與後端一致
+    // ⚠️ 請更換成你部署後的網址
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwKR-UYf1b_7SgaBVdEw8LEAkl5cy2ksBlPPFgcIEZpXK_5pCBbvdpicDDVCFHJAvUX/exec'; 
+    const HIDDEN_SALT = "BusSalt_981_"; 
     let _u = ""; 
 
     function getFormattedTime() {
         const now = new Date();
-        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        return now.toLocaleTimeString('zh-TW', { hour12: false });
     }
 
     setInterval(() => {
@@ -79,25 +75,21 @@
 
     async function updateProcess() {
         document.getElementById('status').innerText = "驗證更新中...";
-        const timeFactor = new Date().getMinutes().toString();
+        // 與後端一致：取當前分鐘字串，不補零
+        const timeFactor = new Date().getMinutes().toString(); 
         const hash = await sha256(HIDDEN_SALT + _u + timeFactor);
         await startFetch(hash);
     }
 
- async function updateProcess() {
-        if (!_u) return;
-        document.getElementById('status').innerText = "驗證更新中...";
-        
-        // 取得當前分鐘數 (0-59)
-        const now = new Date();
-        const timeFactor = now.getMinutes().toString(); 
-        
-        // 生成 Hash
-        const hash = await sha256(HIDDEN_SALT + _u + timeFactor);
-        
-        console.log("正在發送驗證...", { minute: timeFactor, hash: hash }); // 偵錯用
-        await startFetch(hash);
-    }
+    async function startFetch(hash) {
+        try {
+            const response = await fetch(`${GAS_URL}?key=${hash}`);
+            const data = await response.json();
+            
+            if (data.code === 403) {
+                document.getElementById('status').innerText = "驗證失敗，請重整頁面並確認密碼。";
+                return;
+            }
 
             document.getElementById('app').style.display = 'flex';
             document.getElementById('status').innerText = `最後更新：${getFormattedTime()}`;
@@ -106,7 +98,7 @@
 
             setTimeout(updateProcess, 30000);
         } catch (e) {
-            document.getElementById('status').innerText = "連線失敗。";
+            document.getElementById('status').innerText = "連線伺服器失敗。";
         }
     }
 
@@ -124,7 +116,6 @@
                 const s = timeInfo.StopStatus;
                 if (s === 0) {
                     const mins = Math.floor(timeInfo.EstimateTime / 60);
-                    // 套用你的 CSS class
                     if (mins <= 1) timeHtml = '<span class="time-tag coming">進站中</span>';
                     else if (mins <= 3) timeHtml = `<span class="time-tag coming">${mins} 分</span>`;
                     else timeHtml = `<span class="time-tag minutes">${mins} 分</span>`;
